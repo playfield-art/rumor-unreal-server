@@ -7,8 +7,8 @@ from api import get_data, get_categories
 from data import sanitize_data, format_data, getDataFromJson
 
 load_dotenv()
-bearer_token = os.getenv('BEARER_TOKEN')
-db_url = os.getenv('DB_URL')
+bearer_token = os.getenv('BEARER_TOKEN_GRAPHQL')
+db_url = os.getenv('DB_URL_GRAPHQL')
 update_interval = 1
 data_to_use = ''
 
@@ -43,7 +43,7 @@ def update_database():
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
 @app.get("/api/data")
-async def get_data():
+async def get_data_api():
     return data_to_use
     return {
    "purchaseToken":"some-token-value",
@@ -53,5 +53,5 @@ async def get_data():
 }
 
 @app.get("/api/categories")
-async def get_categories():
+async def get_categories_api():
     return {"categories": list(data_to_use.keys())}

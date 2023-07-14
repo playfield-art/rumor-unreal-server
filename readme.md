@@ -6,6 +6,16 @@ e.g. on windows
 
 ```python -m venv venv```
 
+## Activate environment
+
+e.g on windows
+
+```venv\Scripts\activate```
+
+e.g. on mac
+
+```source venv/bin/activate```
+
 ## Upgrade pip
 
 ```python.exe -m pip install --upgrade pip```

@@ -30,6 +30,7 @@ or the other way
 
 ## Running server
 
+```venv\Scripts\activate```
 ```uvicorn main:app --reload```
 
 ## Make requests 

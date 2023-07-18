@@ -10,7 +10,8 @@ from data import sanitize_data, format_data, getDataFromJson, get_brainjar_data,
 load_dotenv()
 bearer_token_graphql = os.getenv('BEARER_TOKEN_GRAPHQL')
 db_url = os.getenv('DB_URL_GRAPHQL')
-update_interval = 1
+update_interval = 5
+# session_id = null te schrijven naar bestand
 data_to_use = ''
 
 data_to_use = getDataFromJson('data.json')
@@ -29,7 +30,7 @@ headers = {
 
 def get_next_update_time():
     today = datetime.now()
-    next_update = today + timedelta(days=update_interval)
+    next_update = today + timedelta(minutes=update_interval)
     return next_update
 
 # Define the function that is to be executed
@@ -48,12 +49,13 @@ def update_database():
     if graphql_data:
         with open('data.json', 'w') as outfile:
           json.dump(data_to_use, outfile)
+    # trigger unreal engine
     scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-update_database()
+# update_database()
 
 @app.get("/api/data")
 async def get_data_api():

@@ -4,7 +4,7 @@ import requests
 from dotenv import load_dotenv
 import os
 
-
+languages = ["nl", "en"]
 def sanitize_data(item):
     if isinstance(item, dict):
         if "attributes" in item:
@@ -48,20 +48,21 @@ def format_rumor_data(data, graphql_data):
     for section in data['data']['sections']:
         title = section['title']
         tags = [tag['tag'] for tag in section['tags']]
-        summary = section['summary']
-        stories = {tag: [] for tag in tags}
-        for story in stories:
-            print(story)
+        summary = {summary_part: {language: section['summary'][summary_part] for language in languages} for summary_part in section['summary']}
+
+        quotes = {tag: {language: [] for language in languages} for tag in tags}
+        quotes['overall'] = {language: [] for language in languages}
         for section_tag in section['tags']:
             for data_tag in graphql_data:
                 if section_tag['tag'].lower() == data_tag.lower():
-                    for story in graphql_data[data_tag]:
-                      stories[data_tag.lower()].append(story['text'])
-                    
+                    for quote in graphql_data[data_tag]:
+                      quotes[data_tag.lower()][languages[0]].append(quote['text'])
+                      quotes['overall'][languages[0]].append(quote['text'])
+          
         result[title] = {
-            'title': title,
+            'title': {language: title for language in languages},
             'summary': summary,
-            'stories': stories,
+            'quotes': quotes,
             'meta': {
                 'introUrl': 'sfsdf.url',
                 'tags': tags,

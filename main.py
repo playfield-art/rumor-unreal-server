@@ -60,7 +60,6 @@ def update_database():
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-update_database()
 
 @app.get("/api/data")
 async def get_data_api():

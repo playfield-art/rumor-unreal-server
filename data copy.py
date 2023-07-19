@@ -50,20 +50,18 @@ def format_rumor_data(data, graphql_data, languages):
         tags = [tag['tag'] for tag in section['tags']]
         summary = {summary_part: {language: section['summary'][summary_part] for language in short_languages} for summary_part in section['summary']}
 
-        quotes = {tag: [] for tag in tags}
-        quotes['overall'] = []
+        quotes = {tag: {language: [] for language in short_languages} for tag in tags}
+        quotes['overall'] = {language: [] for language in short_languages}
         for section_tag in section['tags']:
             for data_tag in graphql_data:
                 if section_tag['tag'].lower() == data_tag.lower():
                     for quote in graphql_data[data_tag]:
-                      quote_with_language = {language['short']: '' for language in languages}
-                      print(quote_with_language)
+                      print(quote) 
                       for translation in quote['translations']:
                         if translation['language']['data']['short'] in short_languages:
                           language = translation['language']['data']['short']
-                          quote_with_language[language] = translation['text']
-                      quotes[data_tag.lower()].append(quote_with_language)
-                      quotes['overall'].append(quote_with_language)
+                          quotes[data_tag.lower()][language].append(translation['text'])
+                          quotes['overall'][language].append(translation['text'])
           
         result[title] = {
             'title': {language: title for language in short_languages},

@@ -4,7 +4,7 @@ from datetime import timedelta, datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import os
-from graphql_api import get_data, get_categories
+from graphql_api import get_data, get_languages
 from data import sanitize_data, format_data, getDataFromJson, get_brainjar_data, format_rumor_data
 
 load_dotenv()
@@ -36,15 +36,20 @@ def get_next_update_time():
 # Define the function that is to be executed
 def update_database():
     print("Updating database...")
+    languages = get_languages(headers, db_url)
     graphql_data = get_data(headers, db_url)
     graphql_data_sanitized = sanitize_data(graphql_data)
-    
     graphql_formatted_data = format_data(graphql_data_sanitized)
-    print(graphql_formatted_data)
     brainjar_data = get_brainjar_data()
-    all_data = format_rumor_data(brainjar_data, graphql_formatted_data)
+    all_data = format_rumor_data(brainjar_data, graphql_formatted_data, languages)
     global data_to_use
     data_to_use = all_data
+    data_to_use['meta_data'] = {
+        'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+        'languages': languages,
+        'intro_url': 'intro'
+		}
+
     print(data_to_use)
     if graphql_data:
         with open('data.json', 'w') as outfile:
@@ -55,7 +60,7 @@ def update_database():
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-# update_database()
+update_database()
 
 @app.get("/api/data")
 async def get_data_api():

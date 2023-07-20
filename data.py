@@ -3,7 +3,27 @@ import random
 import requests
 from dotenv import load_dotenv
 import os
+import re
 
+def insert_br_before_long_words(input_string, max_consecutive_chars=20):
+    words = re.findall(r'\S+|[.,!?;]', input_string)  # Split words and keep punctuation marks
+    result = []
+    current_line_length = 0
+
+    for item in words:
+        if re.match(r'\S+', item):  # If it's a word
+            word_length = len(item)
+            if current_line_length + word_length > max_consecutive_chars:
+                result.append('<br> ')
+                current_line_length = 0
+
+            result.append(item + ' ')
+            current_line_length += word_length
+        else:  # If it's a punctuation mark
+            result.append(item + ' ')
+            current_line_length += 1
+
+    return ''.join(result)
 
 def sanitize_data(item):
     if isinstance(item, dict):
@@ -61,7 +81,8 @@ def format_rumor_data(data, graphql_data, languages):
                       for translation in quote['translations']:
                         if translation['language']['data']['short'] in short_languages:
                           language = translation['language']['data']['short']
-                          quote_with_language[language] = translation['text']
+                          text = insert_br_before_long_words(translation['text'], max_consecutive_chars=35)
+                          quote_with_language[language] = text
                       quotes[data_tag.lower()].append(quote_with_language)
                       quotes['overall'].append(quote_with_language)
           

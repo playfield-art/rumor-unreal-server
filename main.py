@@ -1,20 +1,35 @@
 import json
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from datetime import timedelta, datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import os
 from graphql_api import get_data, get_languages
-from data import sanitize_data, format_data, getDataFromJson, get_brainjar_data, format_rumor_data
+from data import sanitize_data, get_data_from_json, get_brainjar_data, format_rumor_data
 
-load_dotenv()
+from pythonosc import udp_client
+
+# Load environment variables from .env file
+try:
+    load_dotenv()
+except Exception as e:
+    raise Exception("Error loading environment variables. Make sure you have a valid .env file.") from e
+
+# Setup OSC client
+if os.getenv('OSC_IP') and os.getenv('OSC_PORT'):
+	client = udp_client.SimpleUDPClient(os.getenv('OSC_IP'), int(os.getenv('OSC_PORT')))
+
+
+# Fetch environment variables
 bearer_token_graphql = os.getenv('BEARER_TOKEN_GRAPHQL')
 db_url = os.getenv('DB_URL_GRAPHQL')
 update_interval = 5
-# session_id = null te schrijven naar bestand
-data_to_use = ''
 
-data_to_use = getDataFromJson('data.json')
+# Load initial data from 'data.json' with error handling
+try:
+    data_to_use = get_data_from_json('data.json')
+except Exception as e:
+    raise Exception("Error loading data from 'data.json'. Make sure the file exists and contains valid JSON data.") from e
 
 app = FastAPI()
 
@@ -28,43 +43,68 @@ headers = {
     'Authorization': f'Bearer {bearer_token_graphql}'
 }
 
-def get_next_update_time():
+def get_next_update_time() -> datetime:
     today = datetime.now()
     next_update = today + timedelta(minutes=update_interval)
     return next_update
 
-# Define the function that is to be executed
 def update_database():
-    print("Updating database...")
-    languages = get_languages(headers, db_url)
-    graphql_data = get_data(headers, db_url)
-    graphql_data_sanitized = sanitize_data(graphql_data)
-    graphql_formatted_data = format_data(graphql_data_sanitized)
-    brainjar_data = get_brainjar_data()
-    all_data = format_rumor_data(brainjar_data, graphql_formatted_data, languages)
-    global data_to_use
-    data_to_use = all_data
-    data_to_use['meta_data'] = {
-        'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        'languages': languages,
-        'intro_url': 'intro'
-		}
+    try:
+        print("Updating database...")
+        languages = get_languages(headers, db_url)
+        graphql_data = get_data(headers, db_url)
+        graphql_data_sanitized = sanitize_data(graphql_data)
+        print("Sanitized GraphQL data:")
+        print(graphql_data_sanitized)
+        brainjar_data = get_brainjar_data()
+        interation_id = get_data_from_json('id.json')
+        if brainjar_data['iteration_id'] == interation_id:
+            print("No new data available")
+            return
+        else:
+          print("New data available")
+          try:
+            with open('id.json', 'w') as outfile:
+               json.dump(brainjar_data['iteration_id'], outfile)
+          except Exception as e:
+            print(f"Error updating id: {e}")
+          all_data = format_rumor_data(brainjar_data, graphql_data_sanitized, languages)
+          data_to_use = all_data
+          data_to_use['meta_data'] = {
+            'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
+            'languages': languages,
+            'intro_url': 'intro'
+        }
 
-    print(data_to_use)
-    if graphql_data:
-        with open('data.json', 'w') as outfile:
-          json.dump(data_to_use, outfile)
-    # trigger unreal engine
-    scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
+          # Save the updated data to 'data.json'
+          if graphql_data:
+            with open('data.json', 'w') as outfile:
+                json.dump(data_to_use, outfile)
+            # trigger unreal engine
+            client.send_message("/update", "")
+          
+
+      	# trigger unreal engine
+        scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
+
+    except Exception as e:
+        print(f"Error updating database: {e}")
 
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
+update_database()
 
 @app.get("/api/data")
-async def get_data_api():
-    return data_to_use
+async def get_data_api() -> dict:
+    if data_to_use:
+        return data_to_use
+    else:
+        raise HTTPException(status_code=500, detail="Data is not available.")
 
 @app.get("/api/categories")
-async def get_categories_api():
-    return {"categories": list(data_to_use.keys())}
+async def get_categories_api() -> dict:
+    if data_to_use:
+        return {"categories": list(data_to_use.keys())}
+    else:
+        raise HTTPException(status_code=500, detail="Data is not available.")

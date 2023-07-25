@@ -1,11 +1,9 @@
 import json
-import random
 import requests
-from dotenv import load_dotenv
 import os
 import re
 
-def insert_br_before_long_words(input_string, max_consecutive_chars=20):
+def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20):
     words = re.findall(r'\S+|[.,!?;]', input_string)  # Split words and keep punctuation marks
     result = []
     current_line_length = 0
@@ -25,27 +23,48 @@ def insert_br_before_long_words(input_string, max_consecutive_chars=20):
 
     return ''.join(result)
 
+# def sanitize_data(item):
+#     if isinstance(item, dict):
+#         if "attributes" in item:
+#             return sanitize_data(item["attributes"])
+#         else:
+#             return {k: sanitize_data(v) for k, v in item.items()}
+#     elif isinstance(item, list):
+#         return [sanitize_data(i) for i in item]
+#     else:
+#         return item
 def sanitize_data(item):
     if isinstance(item, dict):
         if "attributes" in item:
             return sanitize_data(item["attributes"])
         else:
-            return {k: sanitize_data(v) for k, v in item.items()}
+            sanitized_item = {}
+            for k, v in item.items():
+                if k == 'translations':  # Special handling for the 'translations' key
+                    sanitized_item[k] = {}
+                    for translation in v:
+                        language = translation['language']['data']['attributes']['short']
+                        text = translation['text']
+                        sanitized_item[k][language] = text
+                else:
+                    sanitized_item[k] = sanitize_data(v)
+            return sanitized_item
     elif isinstance(item, list):
         return [sanitize_data(i) for i in item]
     else:
         return item
 
-def format_data(data):
-    # add local url
-    return data
 
-def getDataFromJson(url):
-    with open(url) as json_file:
+
+def get_data_from_json(url):
+    try:
+      with open(url) as json_file:
         data = json.load(json_file)
         return data
+    except Exception as e:
+        raise Exception(f"Error loading data from '{url}'. Make sure the file exists and contains valid JSON data.") from e 
 
-def get_brainjar_data():
+def get_brainjar_data() -> dict:
     url = "https://brj-intern-playfield-rumour.ew.r.appspot.com/rumor"
     bearer_token_brainjar = os.getenv('BEARER_TOKEN_BRAINJAR')
     headers = {
@@ -57,12 +76,53 @@ def get_brainjar_data():
         json_data = response.json()
         return json_data
     except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
-        return None
+        raise Exception(f"Error while fetching data from Brainjar API: {e}") from e
 
 
+def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
+    result = {}
+    short_languages = [language for language in languages.keys()]
+    
+    for section in data.get('Buurtleven', []):
+        title = section['question_tag']
+        tags = []
+        summary = {}
 
-def format_rumor_data(data, graphql_data, languages):
+        quotes = {tag: [] for tag in tags}
+        quotes['overall'] = []
+
+        for section_tag in tags:
+            for data_tag in graphql_data.keys():
+                if section_tag.lower() == data_tag.lower():
+                    for quote in graphql_data[data_tag]:
+                        quote_with_language = {language: '' for language in short_languages}
+                        for language, text in quote.get('translations', {}).items():
+                            if language in short_languages:
+                                quote_with_language[language] = insert_br_before_long_words(text, max_consecutive_chars=35)
+                        quotes[data_tag.lower()].append(quote_with_language)
+                        quotes['overall'].append(quote_with_language)
+
+        result[title] = {
+            'title': {language: title for language in short_languages},
+            'summary': summary,
+            'quotes': quotes,
+            'meta': {
+                'introUrl': 'sfsdf.url',
+                'tags': tags,
+                'statistics': [
+                    {
+                        'name': "amount_of_family_members",
+                        'label': "Amount of family member",
+                        'type': "percentage",
+                        'value': "30"
+                    },
+                ]
+            }
+        }
+
+    return result
+
+def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
     result = {}
     short_languages = [language['short'] for language in languages]
     for section in data['data']['sections']:
@@ -77,11 +137,9 @@ def format_rumor_data(data, graphql_data, languages):
                 if section_tag['tag'].lower() == data_tag.lower():
                     for quote in graphql_data[data_tag]:
                       quote_with_language = {language['short']: '' for language in languages}
-                      print(quote_with_language)
-                      for translation in quote['translations']:
-                        if translation['language']['data']['short'] in short_languages:
-                          language = translation['language']['data']['short']
-                          text = insert_br_before_long_words(translation['text'], max_consecutive_chars=35)
+                      for language in quote['translations']:                         
+                        if language in short_languages:
+                          text = insert_br_before_long_words(quote['translations'][language], max_consecutive_chars=35)
                           quote_with_language[language] = text
                       quotes[data_tag.lower()].append(quote_with_language)
                       quotes['overall'].append(quote_with_language)

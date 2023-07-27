@@ -5,9 +5,11 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import os
 from graphql_api import get_data, get_languages
-from data import sanitize_data, get_data_from_json, get_brainjar_data, format_rumor_data
+from data import sanitize_data, get_data_from_json, get_brainjar_data, format_rumor_data, download_all_audio
 
 from pythonosc import udp_client
+
+output_folder = "../rumor-unreal/dynamic_audio_files"
 
 # Load environment variables from .env file
 try:
@@ -51,24 +53,29 @@ def get_next_update_time() -> datetime:
 def update_database():
     try:
         print("Updating database...")
-        languages = get_languages(headers, db_url)
-        graphql_data = get_data(headers, db_url)
-        graphql_data_sanitized = sanitize_data(graphql_data)
-        print("Sanitized GraphQL data:")
-        print(graphql_data_sanitized)
+
+        
+        
         brainjar_data = get_brainjar_data()
         interation_id = get_data_from_json('id.json')
-        if brainjar_data['iteration_id'] == interation_id:
+        # change this to ==
+        if brainjar_data['iteration_id'] != interation_id:
             print("No new data available")
             return
         else:
           print("New data available")
+
           try:
             with open('id.json', 'w') as outfile:
                json.dump(brainjar_data['iteration_id'], outfile)
           except Exception as e:
             print(f"Error updating id: {e}")
+          languages = get_languages(headers, db_url)
+          graphql_data = get_data(headers, db_url)
+          graphql_data_sanitized = sanitize_data(graphql_data)
+          download_all_audio(graphql_data_sanitized, output_folder)
           all_data = format_rumor_data(brainjar_data, graphql_data_sanitized, languages)
+          print(all_data)
           data_to_use = all_data
           data_to_use['meta_data'] = {
             'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -97,8 +104,8 @@ update_database()
 
 @app.get("/api/data")
 async def get_data_api() -> dict:
-    if data_to_use:
-        return data_to_use
+    if get_data_from_json('data.json'):
+        return get_data_from_json('data.json')
     else:
         raise HTTPException(status_code=500, detail="Data is not available.")
 

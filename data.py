@@ -2,6 +2,7 @@ import json
 import requests
 import os
 import re
+import uuid
 
 def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20):
     words = re.findall(r'\S+|[.,!?;]', input_string)  # Split words and keep punctuation marks
@@ -23,16 +24,6 @@ def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20
 
     return ''.join(result)
 
-# def sanitize_data(item):
-#     if isinstance(item, dict):
-#         if "attributes" in item:
-#             return sanitize_data(item["attributes"])
-#         else:
-#             return {k: sanitize_data(v) for k, v in item.items()}
-#     elif isinstance(item, list):
-#         return [sanitize_data(i) for i in item]
-#     else:
-#         return item
 def sanitize_data(item):
     if isinstance(item, dict):
         if "attributes" in item:
@@ -46,6 +37,14 @@ def sanitize_data(item):
                         language = translation['language']['data']['attributes']['short']
                         text = translation['text']
                         sanitized_item[k][language] = text
+                elif k == 'audio':  # Special handling for the 'audio' key
+                    sanitized_item[k] = {}
+                    for audio in v:
+                      language = audio['language']['data']['attributes']['short']
+                      sanitized_item[k][language] = {'id': f'{language}_{str(uuid.uuid4())}',  # Generate a unique ID for the audio,
+                         'url': audio['audio']['data']['attributes']['url'],
+                         } 
+                    print(sanitized_item[k])
                 else:
                     sanitized_item[k] = sanitize_data(v)
             return sanitized_item
@@ -140,7 +139,8 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
                       for language in quote['translations']:                         
                         if language in short_languages:
                           text = insert_br_before_long_words(quote['translations'][language], max_consecutive_chars=35)
-                          quote_with_language[language] = text
+                          print(quote)
+                          quote_with_language[language] = {'text': text, 'audio': quote['audio'][language]}
                       quotes[data_tag.lower()].append(quote_with_language)
                       quotes['overall'].append(quote_with_language)
           
@@ -164,3 +164,47 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
 
             
     return result    
+
+def delete_files_in_folder(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                print(f"Deleted {filename}")
+        except Exception as e:
+            print(f"Failed to delete {filename}: {str(e)}")
+
+def download_audio(audio_data, output_folder):
+    for language, audio_list in audio_data.items():
+        for audio_info in audio_list:
+            audio_url = audio_info['url']
+            audio_id = audio_info['id']
+            filename = f"{audio_id}.wav"
+
+            if not os.path.exists(output_folder):
+                os.makedirs(output_folder)
+
+            response = requests.get(audio_url)
+            if response.status_code == 200:
+                output_path = os.path.join(output_folder, filename)
+                with open(output_path, 'wb') as file:
+                    file.write(response.content)
+                print(f"Downloaded {filename}")
+            else:
+                print(f"Failed to download {filename}")
+
+def download_all_audio(data, output_folder):
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    delete_files_in_folder(output_folder)
+    all_audio_data = {}
+    for category_data in data.values():
+        for item in category_data:
+            if 'audio' in item:
+                audio_data = item['audio']
+                for language, audio_info in audio_data.items():
+                    if language not in all_audio_data:
+                        all_audio_data[language] = []
+                    all_audio_data[language].append(audio_info)
+    download_audio(all_audio_data, output_folder)

@@ -41,9 +41,8 @@ def get_quotes(headers, db_url, category):
               name
             }}
           }}
+
         }}
-      }}
-      attributes {{
         translations {{
           language {{
             data {{
@@ -54,6 +53,22 @@ def get_quotes(headers, db_url, category):
             }}
           }}
           text
+        }}
+        audio {{
+          audio {{
+            data {{
+              attributes {{
+                url
+              }}
+            }}
+          }}
+          language {{
+            data {{
+              attributes {{
+                short
+              }}
+            }}
+          }}
         }}
       }}
     }}

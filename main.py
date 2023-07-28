@@ -59,7 +59,7 @@ def update_database():
         brainjar_data = get_brainjar_data()
         interation_id = get_data_from_json('id.json')
         # change this to ==
-        if brainjar_data['iteration_id'] != interation_id:
+        if brainjar_data['iteration_id'] == interation_id:
             print("No new data available")
             return
         else:
@@ -100,7 +100,7 @@ def update_database():
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-update_database()
+# update_database()
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

@@ -31,7 +31,8 @@ update_interval = 5
 try:
     data_to_use = get_data_from_json('data.json')
 except Exception as e:
-    raise Exception("Error loading data from 'data.json'. Make sure the file exists and contains valid JSON data.") from e
+    print(f"Error: {e}")
+    # data_to_use = {}
 
 app = FastAPI()
 
@@ -99,7 +100,7 @@ def update_database():
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-# update_database()
+update_database()
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

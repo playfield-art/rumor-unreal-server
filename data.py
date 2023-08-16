@@ -34,9 +34,14 @@ def sanitize_data(item):
                 if k == 'translations':  # Special handling for the 'translations' key
                     sanitized_item[k] = {}
                     for translation in v:
-                        language = translation['language']['data']['attributes']['short']
-                        text = translation['text']
-                        sanitized_item[k][language] = text
+                        try:
+                            if translation['language']['data'] != None:
+                                language = translation['language']['data']['attributes']['short']
+                                text = translation['text']
+                                sanitized_item[k][language] = text
+                        except Exception as e:
+                            print(translation)
+                            print(f"Error while sanitizing translation: {e}")
                 elif k == 'audio':  # Special handling for the 'audio' key
                     sanitized_item[k] = {}
                     for audio in v:
@@ -140,7 +145,10 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
                         if language in short_languages:
                           text = insert_br_before_long_words(quote['translations'][language], max_consecutive_chars=35)
                           print(quote)
-                          quote_with_language[language] = {'text': text, 'audio': quote['audio'][language]}
+                          if language in quote['audio']:
+                            quote_with_language[language] = {'text': text, 'audio': quote['audio'][language]}
+                          else:
+                            quote_with_language[language] = {'text': text, 'audio': None}
                       quotes[data_tag.lower()].append(quote_with_language)
                       quotes['overall'].append(quote_with_language)
           

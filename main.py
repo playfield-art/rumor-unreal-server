@@ -51,7 +51,7 @@ def get_next_update_time() -> datetime:
     return next_update
 
 def update_database():
-    try:
+    # try:
         print("Updating database...")
 
         
@@ -64,7 +64,6 @@ def update_database():
             return
         else:
           print("New data available")
-
           try:
             with open('id.json', 'w') as outfile:
                json.dump(brainjar_data['iteration_id'], outfile)
@@ -94,8 +93,8 @@ def update_database():
       	# trigger unreal engine
         scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-    except Exception as e:
-        print(f"Error updating database: {e}")
+    # except Exception as e:
+    #     print(f"Error updating database: {e}")
 
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())

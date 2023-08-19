@@ -75,7 +75,6 @@ def update_database():
           graphql_data_sanitized = sanitize_data(graphql_data)
           download_all_audio(graphql_data_sanitized, output_folder)
           all_data = format_rumor_data(brainjar_data, graphql_data_sanitized, languages)
-          print(all_data)
           data_to_use = all_data
           data_to_use['meta_data'] = {
             'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),

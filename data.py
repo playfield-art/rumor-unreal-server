@@ -3,7 +3,9 @@ import requests
 import os
 import re
 import uuid
+import translators as ts
 
+print(ts.translators_pool)
 def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20):
     words = re.findall(r'\S+|[.,!?;]', input_string)  # Split words and keep punctuation marks
     result = []
@@ -30,35 +32,35 @@ def sanitize_data(item):
             return sanitize_data(item["attributes"])
         else:
             sanitized_item = {}
-            for k, v in item.items():
-                if k == 'translations':  # Special handling for the 'translations' key
-                    sanitized_item[k] = {}
-                    for translation in v:
-                        try:
-                            if translation['language']['data'] != None:
-                                language = translation['language']['data']['attributes']['short']
-                                text = translation['text']
-                                sanitized_item[k][language] = text
-                        except Exception as e:
-                            print(translation)
-                            print(f"Error while sanitizing translation: {e}")
-                elif k == 'audio':  # Special handling for the 'audio' key
-                    sanitized_item[k] = {}
-                    for audio in v:
-                      print(audio)
-                      try:
-                        if audio['language']['data'] != None:
-                                language = audio['language']['data']['attributes']['short']
-                                sanitized_item[k][language] = {'id': f'{language}_{str(uuid.uuid4())}',  # Generate a unique ID for the audio,
-                         'url': audio['audio']['data']['attributes']['url'],
-                         } 
-                      except Exception as e:
-                            print(translation)
-                            print(f"Error while sanitizing translation: {e}")
-                      
-                    print(sanitized_item[k])
-                else:
-                    sanitized_item[k] = sanitize_data(v)
+            try:
+                for k, v in item.items():
+                    if k == 'translations':  # Special handling for the 'translations' key
+                        sanitized_item[k] = {}
+                        for translation in v:
+                            try:
+                                if translation['language']['data'] != None:
+                                    language = translation['language']['data']['attributes']['short']
+                                    text = translation['text']
+                                    sanitized_item[k][language] = text
+                            except Exception as e:
+                                print(translation)
+                                print(f"Error while sanitizing translation: {e}")
+                    elif k == 'audio':  # Special handling for the 'audio' key
+                        sanitized_item[k] = {}
+                        for audio in v:
+                            try:
+                                if audio['language']['data'] != None:
+                                        language = audio['language']['data']['attributes']['short']
+                                        sanitized_item[k][language] = {'id': f'{language}_{str(uuid.uuid4())}',  # Generate a unique ID for the audio,
+                                'url': audio['audio']['data']['attributes']['url'],
+                                } 
+                            except Exception as e:
+                                    print(translation)
+                                    print(f"Error while sanitizing translation: {e}")                        
+                    else:
+                        sanitized_item[k] = sanitize_data(v)
+            except Exception as e:
+                print(f"Error while sanitizing dict: {e}")
             return sanitized_item
     elif isinstance(item, list):
         return [sanitize_data(i) for i in item]
@@ -139,7 +141,27 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
     for section in data['data']['sections']:
         title = section['title']
         tags = [tag['tag'] for tag in section['tags']]
-        summary = {summary_part: {language: section['summary'][summary_part] for language in short_languages} for summary_part in section['summary']}
+        # Initialize an empty dictionary to store the translated summaries
+        summary = {}
+
+        # Iterate through each summary part in the section's summary
+        for summary_part in section['summary']:
+            # Initialize a dictionary for the current summary part
+            summary[summary_part] = {}
+            
+            # Iterate through each language in the list of short_languages
+            for language in short_languages:
+                # Retrieve the original summary text for the current summary part and language
+                original_summary = section['summary'][summary_part]
+                if original_summary != None and original_summary != "":
+                    # Store the original summary if the language is Dutch (nl)
+                    if language == 'nl':
+                        summary[summary_part][language] = original_summary
+                    else:
+                        # Perform translation for non-Dutch languages
+                        translated_summary_text = translate_function(original_summary, language, 'nl', 'google')
+                        summary[summary_part][language] = translated_summary_text
+        # summary = {summary_part: {language: section['summary'][summary_part] for language in short_languages} for summary_part in section['summary']}
 
         quotes = {tag: [] for tag in tags}
         quotes['overall'] = []
@@ -151,16 +173,21 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
                       for language in quote['translations']:                         
                         if language in short_languages:
                           text = insert_br_before_long_words(quote['translations'][language], max_consecutive_chars=35)
-                          print(quote)
                           if language in quote['audio']:
                             quote_with_language[language] = {'text': text, 'audio': quote['audio'][language]}
                           else:
                             quote_with_language[language] = {'text': text, 'audio': None}
                       quotes[data_tag.lower()].append(quote_with_language)
                       quotes['overall'].append(quote_with_language)
-          
+        translated_titles = {}
+        for language in short_languages:
+            if language == 'en':
+                translated_titles[language] = title
+            else:
+                translation = translate_function(title, language, 'en', 'alibaba')
+                translated_titles[language] = translation
         result[title] = {
-            'title': {language: title for language in short_languages},
+            'title': translated_titles,
             'summary': summary,
             'quotes': quotes,
             'meta': {
@@ -191,6 +218,7 @@ def delete_files_in_folder(folder):
             print(f"Failed to delete {filename}: {str(e)}")
 
 def download_audio(audio_data, output_folder):
+    print("Downloading audio...")
     for language, audio_list in audio_data.items():
         for audio_info in audio_list:
             audio_url = audio_info['url']
@@ -223,3 +251,11 @@ def download_all_audio(data, output_folder):
                         all_audio_data[language] = []
                     all_audio_data[language].append(audio_info)
     download_audio(all_audio_data, output_folder)
+
+# Function to perform translation from source language (nl) to target language
+def translate_function(text, target_lang, src_lang = 'auto', engine = 'google'):
+    if engine == 'myMemory' and target_lang == 'en':
+        target_lang = 'en-GB'
+
+    translated_text = ts.translate_text(text, engine, src_lang, target_lang)
+    return translated_text

@@ -45,10 +45,17 @@ def sanitize_data(item):
                 elif k == 'audio':  # Special handling for the 'audio' key
                     sanitized_item[k] = {}
                     for audio in v:
-                      language = audio['language']['data']['attributes']['short']
-                      sanitized_item[k][language] = {'id': f'{language}_{str(uuid.uuid4())}',  # Generate a unique ID for the audio,
+                      print(audio)
+                      try:
+                        if audio['language']['data'] != None:
+                                language = audio['language']['data']['attributes']['short']
+                                sanitized_item[k][language] = {'id': f'{language}_{str(uuid.uuid4())}',  # Generate a unique ID for the audio,
                          'url': audio['audio']['data']['attributes']['url'],
                          } 
+                      except Exception as e:
+                            print(translation)
+                            print(f"Error while sanitizing translation: {e}")
+                      
                     print(sanitized_item[k])
                 else:
                     sanitized_item[k] = sanitize_data(v)

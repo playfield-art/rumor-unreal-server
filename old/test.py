@@ -1,6 +1,7 @@
 import translators as ts
 
-print(ts.translators_pool)
 
-res = ts.google("Welcome to our tutorial!", to_language='fr')
-print(res)
+query_text = "Welcome to our tutorial!"
+for i in range(10000):
+    res = ts.translate_text(query_text, 'google', 'auto', 'nl')
+    print(res + str(i))

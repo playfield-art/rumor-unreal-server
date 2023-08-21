@@ -22,7 +22,7 @@ e.g. on mac
 
 ## Install dependencies
 
-```pip install -r requests.txt```
+```pip install -r requirements.txt```
 
 or the other way
 

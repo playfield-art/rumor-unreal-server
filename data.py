@@ -5,7 +5,6 @@ import re
 import uuid
 import translators as ts
 
-print(ts.translators_pool)
 def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20):
     words = re.findall(r'\S+|[.,!?;]', input_string)  # Split words and keep punctuation marks
     result = []

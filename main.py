@@ -60,10 +60,7 @@ def update_database(force_update = False):
         
         brainjar_data = get_brainjar_data()
         interation_id = get_data_from_json('id.json')
-        # # change this to ==
-        # graphql_data = get_data(headers, db_url)
-        # graphql_data_sanitized = sanitize_data(graphql_data)
-        # print(graphql_data_sanitized)
+        # change this to ==
 
         if brainjar_data['iteration_id'] == interation_id and not force_update:
             print("No new data available")

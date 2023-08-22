@@ -9,7 +9,7 @@ from data import sanitize_data, get_data_from_json, get_brainjar_data, format_ru
 
 from pythonosc import udp_client
 
-output_folder = "../rumor-unreal/dynamic_audio_files"
+
 
 # Load environment variables from .env file
 try:
@@ -21,11 +21,12 @@ except Exception as e:
 if os.getenv('OSC_IP') and os.getenv('OSC_PORT'):
 	client = udp_client.SimpleUDPClient(os.getenv('OSC_IP'), int(os.getenv('OSC_PORT')))
 
-
+output_folder = str(os.getenv('DOWLOAD_FOLDER_QUOTE_FILES'))
+output_folder_build = str(os.getenv('DOWLOAD_FOLDER_QUOTE_FILES_BUILD'))
 # Fetch environment variables
 bearer_token_graphql = os.getenv('BEARER_TOKEN_GRAPHQL')
 db_url = os.getenv('DB_URL_GRAPHQL')
-update_interval = 5
+update_interval = 10
 
 # Load initial data from 'data.json' with error handling
 try:
@@ -52,14 +53,18 @@ def get_next_update_time() -> datetime:
     return next_update
 
 def update_database():
-    # try:
+    try:
         print("Updating database...")
 
         
         
         brainjar_data = get_brainjar_data()
         interation_id = get_data_from_json('id.json')
-        # change this to ==
+        # # change this to ==
+        # graphql_data = get_data(headers, db_url)
+        # graphql_data_sanitized = sanitize_data(graphql_data)
+        # print(graphql_data_sanitized)
+
         if brainjar_data['iteration_id'] == interation_id:
             print("No new data available")
             return
@@ -73,7 +78,7 @@ def update_database():
           languages = get_languages(headers, db_url)
           graphql_data = get_data(headers, db_url)
           graphql_data_sanitized = sanitize_data(graphql_data)
-          download_all_audio(graphql_data_sanitized, output_folder)
+          download_all_audio(graphql_data_sanitized, output_folder, output_folder_build)
           all_data = format_rumor_data(brainjar_data, graphql_data_sanitized, languages)
           data_to_use = all_data
           data_to_use['meta_data'] = {
@@ -93,8 +98,8 @@ def update_database():
       	# trigger unreal engine
         scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-    # except Exception as e:
-    #     print(f"Error updating database: {e}")
+    except Exception as e:
+        print(f"Error updating database: {e}")
 
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())

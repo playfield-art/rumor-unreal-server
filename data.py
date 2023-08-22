@@ -25,6 +25,22 @@ def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20
 
     return ''.join(result)
 
+def change_quotation_marks(text):
+  text.replace('”', '"')
+  text.replace('“', '"')
+  return text
+
+def break_after_title(text): 
+        # Add a line break after "donated" and ":"
+    text = text.replace("donated", "donated<br>")
+    text = text.replace("geschonken", "geschonken<br>")
+    text = text.replace(":", "")
+    text = text.replace("2023", "2023<br><stopTitle>")
+    text = text.replace("2022", "2022<br><stopTitle>")
+    text = text.replace("2024", "2024<br><stopTitle>")
+    return text
+
+
 def sanitize_data(item):
     if isinstance(item, dict):
         if "attributes" in item:
@@ -93,49 +109,6 @@ def get_brainjar_data() -> dict:
 
 def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
     result = {}
-    short_languages = [language for language in languages.keys()]
-    
-    for section in data.get('Buurtleven', []):
-        title = section['question_tag']
-        tags = []
-        summary = {}
-
-        quotes = {tag: [] for tag in tags}
-        quotes['overall'] = []
-
-        for section_tag in tags:
-            for data_tag in graphql_data.keys():
-                if section_tag.lower() == data_tag.lower():
-                    for quote in graphql_data[data_tag]:
-                        quote_with_language = {language: '' for language in short_languages}
-                        for language, text in quote.get('translations', {}).items():
-                            if language in short_languages:
-                                quote_with_language[language] = insert_br_before_long_words(text, max_consecutive_chars=35)
-                        quotes[data_tag.lower()].append(quote_with_language)
-                        quotes['overall'].append(quote_with_language)
-
-        result[title] = {
-            'title': {language: title for language in short_languages},
-            'summary': summary,
-            'quotes': quotes,
-            'meta': {
-                'introUrl': 'sfsdf.url',
-                'tags': tags,
-                'statistics': [
-                    {
-                        'name': "amount_of_family_members",
-                        'label': "Amount of family member",
-                        'type': "percentage",
-                        'value': "30"
-                    },
-                ]
-            }
-        }
-
-    return result
-
-def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
-    result = {}
     short_languages = [language['short'] for language in languages]
     for section in data['data']['sections']:
         title = section['title']
@@ -171,13 +144,19 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
                       quote_with_language = {language['short']: '' for language in languages}
                       for language in quote['translations']:                         
                         if language in short_languages:
-                          text = insert_br_before_long_words(quote['translations'][language], max_consecutive_chars=35)
+                          text = quote['translations'][language]
+                          text = change_quotation_marks(text)
+                          text = break_after_title(text)
+                          title = text.split('<stopTitle>')[0]
+                          quoteText = insert_br_before_long_words(text.split('<stopTitle>')[1], max_consecutive_chars=35)
+                          text = title + quoteText
                           if language in quote['audio']:
                             quote_with_language[language] = {'text': text, 'audio': quote['audio'][language]}
                           else:
                             quote_with_language[language] = {'text': text, 'audio': None}
-                      quotes[data_tag.lower()].append(quote_with_language)
-                      quotes['overall'].append(quote_with_language)
+                      quote_with_metadata = {'highlighted': quote['highlighted'] , 'quote': quote_with_language}
+                      quotes[data_tag.lower()].append(quote_with_metadata)
+                      quotes['overall'].append(quote_with_metadata)
         translated_titles = {}
         for language in short_languages:
             if language == 'en':
@@ -216,7 +195,7 @@ def delete_files_in_folder(folder):
         except Exception as e:
             print(f"Failed to delete {filename}: {str(e)}")
 
-def download_audio(audio_data, output_folder):
+def download_audio(audio_data, output_folder, output_folder_build):
     print("Downloading audio...")
     for language, audio_list in audio_data.items():
         for audio_info in audio_list:
@@ -226,20 +205,27 @@ def download_audio(audio_data, output_folder):
 
             if not os.path.exists(output_folder):
                 os.makedirs(output_folder)
-
+            if not os.path.exists(output_folder_build):
+                os.makedirs(output_folder_build)
             response = requests.get(audio_url)
             if response.status_code == 200:
                 output_path = os.path.join(output_folder, filename)
+                output_path_build = os.path.join(output_folder_build, filename)
                 with open(output_path, 'wb') as file:
+                    file.write(response.content)
+                with open(output_path_build, 'wb') as file:
                     file.write(response.content)
                 print(f"Downloaded {filename}")
             else:
                 print(f"Failed to download {filename}")
 
-def download_all_audio(data, output_folder):
+def download_all_audio(data, output_folder, output_folder_build):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
+    if not os.path.exists(output_folder_build):
+        os.makedirs(output_folder_build)
     delete_files_in_folder(output_folder)
+    delete_files_in_folder(output_folder_build)
     all_audio_data = {}
     for category_data in data.values():
         for item in category_data:
@@ -249,7 +235,7 @@ def download_all_audio(data, output_folder):
                     if language not in all_audio_data:
                         all_audio_data[language] = []
                     all_audio_data[language].append(audio_info)
-    download_audio(all_audio_data, output_folder)
+    download_audio(all_audio_data, output_folder, output_folder_build)
 
 # Function to perform translation from source language (nl) to target language
 def translate_function(text, target_lang, src_lang = 'auto', engine = 'google'):

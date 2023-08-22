@@ -32,6 +32,8 @@ or the other way
 
 ```venv\Scripts\activate```
 ```uvicorn main:app --reload```
+of
+```python -m uvicorn main:app --reload``` 
 
 ## Make requests 
 

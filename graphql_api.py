@@ -43,6 +43,7 @@ def get_quotes(headers, db_url, category):
           }}
 
         }}
+        highlighted
         translations {{
           language {{
             data {{

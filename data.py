@@ -147,9 +147,9 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
                           text = quote['translations'][language]
                           text = change_quotation_marks(text)
                           text = break_after_title(text)
-                          title = text.split('<stopTitle>')[0]
+                          quoteTitle = text.split('<stopTitle>')[0]
                           quoteText = insert_br_before_long_words(text.split('<stopTitle>')[1], max_consecutive_chars=35)
-                          text = title + quoteText
+                          text = quoteTitle + quoteText
                           if language in quote['audio']:
                             quote_with_language[language] = {'text': text, 'audio': quote['audio'][language]}
                           else:

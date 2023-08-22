@@ -52,7 +52,7 @@ def get_next_update_time() -> datetime:
     next_update = today + timedelta(minutes=update_interval)
     return next_update
 
-def update_database():
+def update_database(force_update = False):
     try:
         print("Updating database...")
 
@@ -65,7 +65,7 @@ def update_database():
         # graphql_data_sanitized = sanitize_data(graphql_data)
         # print(graphql_data_sanitized)
 
-        if brainjar_data['iteration_id'] == interation_id:
+        if brainjar_data['iteration_id'] == interation_id and not force_update:
             print("No new data available")
             return
         else:
@@ -104,7 +104,7 @@ def update_database():
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
-update_database()
+# update_database(True)
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

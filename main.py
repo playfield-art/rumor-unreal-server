@@ -101,6 +101,7 @@ def update_database(force_update = False):
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
+
 # update_database(True)
 
 @app.get("/api/data")

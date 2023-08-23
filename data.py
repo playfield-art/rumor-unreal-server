@@ -3,7 +3,11 @@ import requests
 import os
 import re
 import uuid
-import translators as ts
+try:
+    import translators as ts
+except Exception:
+    print("Could not import translators. Make sure you have installed the required dependencies by running 'pip install -r requirements.txt'.")
+
 
 def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20):
     words = re.findall(r'\S+|[.,!?;]', input_string)  # Split words and keep punctuation marks
@@ -241,6 +245,9 @@ def download_all_audio(data, output_folder, output_folder_build):
 def translate_function(text, target_lang, src_lang = 'auto', engine = 'google'):
     if engine == 'myMemory' and target_lang == 'en':
         target_lang = 'en-GB'
-
-    translated_text = ts.translate_text(text, engine, src_lang, target_lang)
+    try: 
+        translated_text = ts.translate_text(text, engine, src_lang, target_lang)
+    except Exception as e:
+        raise(f"Error while translating text: {e}")
+        translated_text = text
     return translated_text

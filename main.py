@@ -103,7 +103,7 @@ def update_database(force_update = False):
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
 
-update_database(True)
+# update_database(True)
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

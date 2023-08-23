@@ -26,7 +26,7 @@ output_folder_build = str(os.getenv('DOWLOAD_FOLDER_QUOTE_FILES_BUILD'))
 # Fetch environment variables
 bearer_token_graphql = os.getenv('BEARER_TOKEN_GRAPHQL')
 db_url = os.getenv('DB_URL_GRAPHQL')
-update_interval = 10
+update_interval = 15
 
 # Load initial data from 'data.json' with error handling
 try:
@@ -64,16 +64,12 @@ def update_database(force_update = False):
         interation_id = get_data_from_json('id.json')
         # change this to ==
 
-        if brainjar_data['iteration_id'] == interation_id and not force_update:
+        if (brainjar_data['iteration_id'] == interation_id or brainjar_data['status'] != "done") and not force_update:
             print("No new data available")
             return
         else:
           print("New data available")
-          try:
-            with open('id.json', 'w') as outfile:
-               json.dump(brainjar_data['iteration_id'], outfile)
-          except Exception as e:
-            print(f"Error updating id: {e}")
+          
           languages = get_languages(headers, db_url)
           graphql_data = get_data(headers, db_url)
           graphql_data_sanitized = sanitize_data(graphql_data)
@@ -92,7 +88,12 @@ def update_database(force_update = False):
             # trigger unreal engine
             download_all_audio(graphql_data_sanitized, output_folder, output_folder_build)
             client.send_message("/update", "")
-          
+            print("Update complete")
+            try:
+                with open('id.json', 'w') as outfile:
+                    json.dump(brainjar_data['iteration_id'], outfile)
+            except Exception as e:
+                print(f"Error updating id: {e}")          
 
       	# trigger unreal engine
 

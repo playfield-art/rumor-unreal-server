@@ -1,4 +1,5 @@
 import json
+import sys
 import requests
 import os
 import re
@@ -246,8 +247,9 @@ def translate_function(text, target_lang, src_lang = 'auto', engine = 'google'):
     if engine == 'myMemory' and target_lang == 'en':
         target_lang = 'en-GB'
     try: 
+        if 'ts' not in sys.modules:
+            import translators as ts
         translated_text = ts.translate_text(text, engine, src_lang, target_lang)
     except Exception as e:
-        raise(f"Error while translating text: {e}")
-        translated_text = text
+        raise Exception(f"Error while translating text: {e}") from e
     return translated_text

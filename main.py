@@ -75,7 +75,6 @@ def update_database(force_update = False):
           languages = get_languages(headers, db_url)
           graphql_data = get_data(headers, db_url)
           graphql_data_sanitized = sanitize_data(graphql_data)
-          download_all_audio(graphql_data_sanitized, output_folder, output_folder_build)
           all_data = format_rumor_data(brainjar_data, graphql_data_sanitized, languages)
           data_to_use = all_data
           data_to_use['meta_data'] = {
@@ -89,6 +88,7 @@ def update_database(force_update = False):
             with open('data.json', 'w') as outfile:
                 json.dump(data_to_use, outfile)
             # trigger unreal engine
+            download_all_audio(graphql_data_sanitized, output_folder, output_folder_build)
             client.send_message("/update", "")
           
 
@@ -97,12 +97,13 @@ def update_database(force_update = False):
 
     except Exception as e:
         print(f"Error updating database: {e}")
+        scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
 
-# update_database(True)
+update_database(True)
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

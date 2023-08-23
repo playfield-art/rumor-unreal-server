@@ -50,9 +50,11 @@ headers = {
 def get_next_update_time() -> datetime:
     today = datetime.now()
     next_update = today + timedelta(minutes=update_interval)
+    print(f"Next update: {next_update.strftime('%d/%m/%Y %H:%M:%S')}")
     return next_update
 
 def update_database(force_update = False):
+    scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
     try:
         print("Updating database...")
 
@@ -93,12 +95,9 @@ def update_database(force_update = False):
           
 
       	# trigger unreal engine
-        scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 
     except Exception as e:
         print(f"Error updating database: {e}")
-        scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
-
 # The job will be executed on the next update time
 scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 

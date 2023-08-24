@@ -12,8 +12,8 @@ from pythonosc import udp_client
 try:
     load_dotenv()
 except Exception as e:
-    raise Exception(
-        "Error loading environment variables. Make sure you have a valid .env file.") from e
+    print(
+        "Error loading environment variables. Make sure you have a valid .env file.")
 
 # Setup OSC client
 if os.getenv('OSC_IP') and os.getenv('OSC_PORT'):
@@ -23,7 +23,7 @@ if os.getenv('OSC_IP') and os.getenv('OSC_PORT'):
 bearer_token_graphql = os.getenv('BEARER_TOKEN_GRAPHQL')
 db_url = os.getenv('DB_URL_GRAPHQL')
 try:
-    update_interval = int(os.getenv('DB_UPDATE_INTERVAL'))
+    update_interval = float(os.getenv('DB_UPDATE_INTERVAL_MIN'))
 except Exception as e:
     update_interval = 15
     print(f"Error: {e}")
@@ -63,17 +63,11 @@ def get_next_update_time() -> datetime:
 
 
 def update_database(force_update=False):
-    if (force_update):
-        print("Forcing update")
-    else:
-        scheduler.add_job(update_database, 'date',
-                          run_date=get_next_update_time())
     try:
         print("Updating database...")
         brainjar_data = get_brainjar_data()
         interation_id = get_data_from_json('id.json')
-        # change this to ==
-
+        # change this to != to force update
         if (brainjar_data['iteration_id'] == interation_id or brainjar_data['status'] != "done") and not force_update:
             print("No new data available")
             return
@@ -102,8 +96,9 @@ def update_database(force_update=False):
                 with open('data.json', 'w') as outfile:
                     json.dump(data_to_use, outfile)
                 # trigger unreal engine
-                if (UPDATE_GRAPHQL_DATA):
+                if (UPDATE_GRAPHQL_DATA and output_folder):
                     download_all_audio(graphql_data_sanitized, output_folder)
+                # trigger unreal engine
                 client.send_message("/update", "")
                 print("Update complete")
                 try:
@@ -112,10 +107,12 @@ def update_database(force_update=False):
                 except Exception as e:
                     print(f"Error updating id: {e}")
 
-        # trigger unreal engine
-
+        
     except Exception as e:
         print(f"Error updating database: {e}")
+    finally:
+        scheduler.add_job(update_database, 'date',
+                          run_date=get_next_update_time())
 
 
 # The job will be executed on the next update time

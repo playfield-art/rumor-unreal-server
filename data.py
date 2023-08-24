@@ -190,6 +190,34 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
             
     return result    
 
+def update_rumor_data(data: dict, old_data: dict, languages: dict):
+    short_languages = [language['short'] for language in languages]
+    for section in data['data']['sections']:
+        title = section['title']
+        # print(old_data[title])
+        # Initialize an empty dictionary to store the translated summaries
+        summary = {}
+
+        # Iterate through each summary part in the section's summary
+        for summary_part in section['summary']:
+            # Initialize a dictionary for the current summary part
+            summary[summary_part] = {}
+            
+            # Iterate through each language in the list of short_languages
+            for language in short_languages:
+                # Retrieve the original summary text for the current summary part and language
+                original_summary = section['summary'][summary_part]
+                if original_summary != None and original_summary != "":
+                    # Store the original summary if the language is Dutch (nl)
+                    if language == 'nl':
+                        summary[summary_part][language] = original_summary
+                    else:
+                        # Perform translation for non-Dutch languages
+                        translated_summary_text = translate_function(original_summary, language, 'nl', 'google')
+                        summary[summary_part][language] = translated_summary_text
+        old_data[title][0]['summary'] = summary
+    return old_data
+
 def delete_files_in_folder(folder):
     for filename in os.listdir(folder):
         file_path = os.path.join(folder, filename)
@@ -200,7 +228,7 @@ def delete_files_in_folder(folder):
         except Exception as e:
             print(f"Failed to delete {filename}: {str(e)}")
 
-def download_audio(audio_data, output_folder, output_folder_build):
+def download_audio(audio_data, output_folder):
     print("Downloading audio...")
     for language, audio_list in audio_data.items():
         for audio_info in audio_list:
@@ -210,27 +238,20 @@ def download_audio(audio_data, output_folder, output_folder_build):
 
             if not os.path.exists(output_folder):
                 os.makedirs(output_folder)
-            if not os.path.exists(output_folder_build):
-                os.makedirs(output_folder_build)
             response = requests.get(audio_url)
+            print(audio_url)
             if response.status_code == 200:
                 output_path = os.path.join(output_folder, filename)
-                output_path_build = os.path.join(output_folder_build, filename)
                 with open(output_path, 'wb') as file:
-                    file.write(response.content)
-                with open(output_path_build, 'wb') as file:
                     file.write(response.content)
                 print(f"Downloaded {filename}")
             else:
                 print(f"Failed to download {filename}")
 
-def download_all_audio(data, output_folder, output_folder_build):
+def download_all_audio(data, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    if not os.path.exists(output_folder_build):
-        os.makedirs(output_folder_build)
     delete_files_in_folder(output_folder)
-    delete_files_in_folder(output_folder_build)
     all_audio_data = {}
     for category_data in data.values():
         for item in category_data:
@@ -240,7 +261,7 @@ def download_all_audio(data, output_folder, output_folder_build):
                     if language not in all_audio_data:
                         all_audio_data[language] = []
                     all_audio_data[language].append(audio_info)
-    download_audio(all_audio_data, output_folder, output_folder_build)
+    download_audio(all_audio_data, output_folder)
 
 # Function to perform translation from source language (nl) to target language
 def translate_function(text, target_lang, src_lang = 'auto', engine = 'google'):

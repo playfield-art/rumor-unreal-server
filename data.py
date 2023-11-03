@@ -129,38 +129,28 @@ def get_brainjar_data_all_languages(languages: dict) -> dict:
     return combine_brainjar_languages(data, languages)
 
 def combine_brainjar_languages(original_data, languages):
+    print("Combining data from different languages...")
+    print(original_data)
     first_language = languages[0]['short']
 
-    def get_section_summary(language, section_index):
-        if section_index < len(original_data[language]['data']['sections']):
-            return {subsection: original_data[language]['data']['sections'][section_index]['summary'].get(subsection, '') for subsection in original_data[first_language]['data']['sections'][section_index]['summary']}
-        return {}
-
-    num_sections = len(original_data[first_language]['data']['sections'])
-    
+    # def convert_data(original_data):
     new_data = {
-        'iteration_id': original_data[first_language]['iteration_id'],
-        'datetime': original_data[first_language]['datetime'],
-        'runtime': original_data[first_language]['runtime'],
-        'status': original_data[first_language]['status'],
+        'iteration_id': original_data['en']['iteration_id'],
+        'datetime': original_data['en']['datetime'],
+        'runtime': original_data['en']['runtime'],
+        'status': original_data['en']['status'],
         'data': {
-            'intro': {language['short']: original_data[language['short']]['data']['intro'] for language in languages},
-            'sections': [],
-            'outro': {language['short']: original_data[language['short']]['data']['outro'] for language in languages}
+            'intro': {lang: original_data[lang]['data']['intro'] for lang in original_data},
+            'sections': [{
+                'title': section['title'],
+                'tags': section['tags'],
+                'summary': {
+                    tag: {lang: section['summary'][tag] for lang in original_data} for tag in section['summary']
+                }
+            } for section in original_data['en']['data']['sections']],
+            'outro': {lang: original_data[lang]['data']['outro'] for lang in original_data}
         }
     }
-    for language in languages:
-        new_section = {
-            'title': original_data[language['short']]['data']['sections'][0]['title'],
-            'tags': original_data[language['short']]['data']['sections'][0]['tags'],
-				}
-    for section_index in range(num_sections):
-        new_section = {
-            'title': original_data[first_language]['data']['sections'][section_index]['title'],
-            'tags': original_data[first_language]['data']['sections'][section_index]['tags'],
-            'summary': {language['short']: get_section_summary(language['short'], section_index) for language in languages}
-        }
-        new_data['data']['sections'].append(new_section)
 
     return new_data
 
@@ -287,8 +277,7 @@ def update_rumor_data(data: dict, old_data: dict, languages: dict):
                                 original_summary, language, 'nl', 'google')
                             summary[summary_part][language] = translated_summary_text
                 else:
-                  # print(section['summary'][summary_part])
-                  summary[summary_part][language] = section['summary'][language][summary_part]
+                  summary[summary_part][language] = section['summary'][summary_part][language]
         old_data[title][0]['summary'] = summary
     except Exception as e:
       print(f"Error while updating rumor data: {e}")

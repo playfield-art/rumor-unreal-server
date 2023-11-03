@@ -9,9 +9,11 @@ try:
 except Exception:
     print("Could not import translators. Make sure you have installed the required dependencies by running 'pip install -r requirements.txt'.")
 
+TRANSLATE_SUMMARY = os.getenv('TRANSLATE_SUMMARY', 'False') == 'True'
 
-def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20):
-    words = re.findall(r'\S+|[.,!?;]', input_string)  # Split words and keep punctuation marks
+def insert_br_before_long_words(input_string: str, max_consecutive_chars: int = 20):
+    # Split words and keep punctuation marks
+    words = re.findall(r'\S+|[.,!?;]', input_string)
     result = []
     current_line_length = 0
 
@@ -30,13 +32,15 @@ def insert_br_before_long_words(input_string: str, max_consecutive_chars:int =20
 
     return ''.join(result)
 
-def change_quotation_marks(text):
-  text.replace('”', '"')
-  text.replace('“', '"')
-  return text
 
-def break_after_title(text): 
-        # Add a line break after "donated" and ":"
+def change_quotation_marks(text):
+    text.replace('”', '"')
+    text.replace('“', '"')
+    return text
+
+
+def break_after_title(text):
+    # Add a line break after "donated" and ":"
     text = text.replace("donated", "donated<br>")
     text = text.replace("geschonken", "geschonken<br>")
     text = text.replace(":", "")
@@ -63,20 +67,20 @@ def sanitize_data(item):
                                     text = translation['text']
                                     sanitized_item[k][language] = text
                             except Exception as e:
-                                print(translation)
-                                print(f"Error while sanitizing translation: {e}")
+                                print(
+                                    f"Error while sanitizing translation: {e}")
                     elif k == 'audio':  # Special handling for the 'audio' key
                         sanitized_item[k] = {}
                         for audio in v:
                             try:
                                 if audio['language']['data'] != None:
-                                        language = audio['language']['data']['attributes']['short']
-                                        sanitized_item[k][language] = {'id': f'{language}_{str(uuid.uuid4())}',  # Generate a unique ID for the audio,
-                                'url': audio['audio']['data']['attributes']['url'],
-                                } 
+                                    language = audio['language']['data']['attributes']['short']
+                                    sanitized_item[k][language] = {'id': f'{language}_{str(uuid.uuid4())}',  # Generate a unique ID for the audio,
+                                                                   'url': audio['audio']['data']['attributes']['url'],
+                                                                   }
                             except Exception as e:
-                                    print(translation)
-                                    print(f"Error while sanitizing translation: {e}")                        
+                                print(
+                                    f"Error while sanitizing translation: {e}")
                     else:
                         sanitized_item[k] = sanitize_data(v)
             except Exception as e:
@@ -88,17 +92,21 @@ def sanitize_data(item):
         return item
 
 
-
 def get_data_from_json(url):
     try:
-      with open(url) as json_file:
-        data = json.load(json_file)
-        return data
+        with open(url) as json_file:
+            data = json.load(json_file)
+            return data
     except Exception as e:
-        raise Exception(f"Error loading data from '{url}'. Make sure the file exists and contains valid JSON data.") from e 
+        raise Exception(
+            f"Error loading data from '{url}'. Make sure the file exists and contains valid JSON data.") from e
 
-def get_brainjar_data() -> dict:
-    url = "https://brj-intern-playfield-rumour.ew.r.appspot.com/rumor"
+
+def get_brainjar_data(language='nl') -> dict:
+    db_url = os.getenv('DB_URL_BRAINJAR')
+    endpoint = '/rumor'
+    language_param = f'?lang={language}'
+    url = f'{db_url}{endpoint}{language_param}'
     bearer_token_brainjar = os.getenv('BEARER_TOKEN_BRAINJAR')
     headers = {
         "Authorization": f"Bearer {bearer_token_brainjar}"
@@ -109,7 +117,54 @@ def get_brainjar_data() -> dict:
         json_data = response.json()
         return json_data
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Error while fetching data from Brainjar API: {e}") from e
+        raise Exception(
+            f"Error while fetching data from Brainjar API: {e}") from e
+
+
+def get_brainjar_data_all_languages(languages: dict) -> dict:
+    data = {}
+    print("Fetching data from Brainjar API...")
+    for language in languages:
+        data[language['short']] = get_brainjar_data(language['short'])
+    return combine_brainjar_languages(data, languages)
+
+def combine_brainjar_languages(original_data, languages):
+    first_language = languages[0]['short']
+
+    def get_section_summary(language, section_index):
+        if section_index < len(original_data[language]['data']['sections']):
+            return {subsection: original_data[language]['data']['sections'][section_index]['summary'].get(subsection, '') for subsection in original_data[first_language]['data']['sections'][section_index]['summary']}
+        return {}
+
+    num_sections = len(original_data[first_language]['data']['sections'])
+    
+    new_data = {
+        'iteration_id': original_data[first_language]['iteration_id'],
+        'datetime': original_data[first_language]['datetime'],
+        'runtime': original_data[first_language]['runtime'],
+        'status': original_data[first_language]['status'],
+        'data': {
+            'intro': {language['short']: original_data[language['short']]['data']['intro'] for language in languages},
+            'sections': [],
+            'outro': {language['short']: original_data[language['short']]['data']['outro'] for language in languages}
+        }
+    }
+    for language in languages:
+        new_section = {
+            'title': original_data[language['short']]['data']['sections'][0]['title'],
+            'tags': original_data[language['short']]['data']['sections'][0]['tags'],
+				}
+    for section_index in range(num_sections):
+        new_section = {
+            'title': original_data[first_language]['data']['sections'][section_index]['title'],
+            'tags': original_data[first_language]['data']['sections'][section_index]['tags'],
+            'summary': {language['short']: get_section_summary(language['short'], section_index) for language in languages}
+        }
+        new_data['data']['sections'].append(new_section)
+
+    return new_data
+
+
 
 
 def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
@@ -125,19 +180,26 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
         for summary_part in section['summary']:
             # Initialize a dictionary for the current summary part
             summary[summary_part] = {}
-            
+
             # Iterate through each language in the list of short_languages
             for language in short_languages:
+                if (TRANSLATE_SUMMARY):
                 # Retrieve the original summary text for the current summary part and language
-                original_summary = section['summary'][summary_part]
-                if original_summary != None and original_summary != "":
-                    # Store the original summary if the language is Dutch (nl)
-                    if language == 'nl':
-                        summary[summary_part][language] = original_summary
-                    else:
-                        # Perform translation for non-Dutch languages
-                        translated_summary_text = translate_function(original_summary, language, 'nl', 'google')
-                        summary[summary_part][language] = translated_summary_text
+                  original_summary = section['summary'][summary_part]
+                  if original_summary != None and original_summary != "":
+                        # Store the original summary if the language is Dutch (nl)
+                        if language == 'nl':
+                            summary[summary_part][language] = original_summary
+                        else:
+                            # Perform translation for non-Dutch languages
+                            translated_summary_text = translate_function(
+                                original_summary, language, 'nl', 'google')
+                            summary[summary_part][language] = translated_summary_text
+                else:
+                  summary[summary_part][language] = section['summary'][language][summary_part]
+
+                  pass
+                  # TODO ADD TRANSLATION
         # summary = {summary_part: {language: section['summary'][summary_part] for language in short_languages} for summary_part in section['summary']}
 
         quotes = {tag: [] for tag in tags}
@@ -146,28 +208,34 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
             for data_tag in graphql_data:
                 if section_tag['tag'].lower() == data_tag.lower():
                     for quote in graphql_data[data_tag]:
-                      quote_with_language = {language['short']: '' for language in languages}
-                      for language in quote['translations']:                         
-                        if language in short_languages:
-                          text = quote['translations'][language]
-                          text = change_quotation_marks(text)
-                          text = break_after_title(text)
-                          quoteTitle = text.split('<stopTitle>')[0]
-                          quoteText = insert_br_before_long_words(text.split('<stopTitle>')[1], max_consecutive_chars=35)
-                          text = quoteTitle + quoteText
-                          if language in quote['audio']:
-                            quote_with_language[language] = {'text': text, 'audio': quote['audio'][language]}
-                          else:
-                            quote_with_language[language] = {'text': text, 'audio': None}
-                      quote_with_metadata = {'highlighted': quote['highlighted'] , 'quote': quote_with_language}
-                      quotes[data_tag.lower()].append(quote_with_metadata)
-                      quotes['overall'].append(quote_with_metadata)
+                        quote_with_language = {
+                            language['short']: '' for language in languages}
+                        for language in quote['translations']:
+                            if language in short_languages:
+                                text = quote['translations'][language]
+                                text = change_quotation_marks(text)
+                                text = break_after_title(text)
+                                quoteTitle = text.split('<stopTitle>')[0]
+                                quoteText = insert_br_before_long_words(
+                                    text.split('<stopTitle>')[1], max_consecutive_chars=35)
+                                text = quoteTitle + quoteText
+                                if language in quote['audio']:
+                                    quote_with_language[language] = {
+                                        'text': text, 'audio': quote['audio'][language]}
+                                else:
+                                    quote_with_language[language] = {
+                                        'text': text, 'audio': None}
+                        quote_with_metadata = {
+                            'highlighted': quote['highlighted'], 'quote': quote_with_language}
+                        quotes[data_tag.lower()].append(quote_with_metadata)
+                        quotes['overall'].append(quote_with_metadata)
         translated_titles = {}
         for language in short_languages:
             if language == 'en':
                 translated_titles[language] = title
             else:
-                translation = translate_function(title, language, 'en', 'alibaba')
+                translation = translate_function(
+                    title, language, 'en', 'alibaba')
                 translated_titles[language] = translation
         result[title] = {
             'title': translated_titles,
@@ -177,24 +245,25 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
                 'introUrl': 'sfsdf.url',
                 'tags': tags,
                 'statistics': [
-                    { 
-                        'name': "amount_of_family_members", 
-                     'label': "Amount of family member", 
-										 'type': "percentage", 
-                    'value': "30" 
-										},
-								]}
-						},
-        
+                    {
+                        'name': "amount_of_family_members",
+                        'label': "Amount of family member",
+                        'type': "percentage",
+                        'value': "30"
+                    },
+                ]}
+        },
 
-            
-    return result    
+    return result
+
 
 def update_rumor_data(data: dict, old_data: dict, languages: dict):
-    short_languages = [language['short'] for language in languages]
-    for section in data['data']['sections']:
+    print("Updating rumor data...")
+    try:
+      short_languages = [language['short'] for language in languages]
+      for section in data['data']['sections']:
+        print(section)
         title = section['title']
-        # print(old_data[title])
         # Initialize an empty dictionary to store the translated summaries
         summary = {}
 
@@ -202,21 +271,32 @@ def update_rumor_data(data: dict, old_data: dict, languages: dict):
         for summary_part in section['summary']:
             # Initialize a dictionary for the current summary part
             summary[summary_part] = {}
-            
+
             # Iterate through each language in the list of short_languages
             for language in short_languages:
+                if (TRANSLATE_SUMMARY):
                 # Retrieve the original summary text for the current summary part and language
-                original_summary = section['summary'][summary_part]
-                if original_summary != None and original_summary != "":
-                    # Store the original summary if the language is Dutch (nl)
-                    if language == 'nl':
-                        summary[summary_part][language] = original_summary
-                    else:
-                        # Perform translation for non-Dutch languages
-                        translated_summary_text = translate_function(original_summary, language, 'nl', 'google')
-                        summary[summary_part][language] = translated_summary_text
+                  original_summary = section['summary'][summary_part]
+                  if original_summary != None and original_summary != "":
+                        # Store the original summary if the language is Dutch (nl)
+                        if language == 'nl':
+                            summary[summary_part][language] = original_summary
+                        else:
+                            # Perform translation for non-Dutch languages
+                            translated_summary_text = translate_function(
+                                original_summary, language, 'nl', 'google')
+                            summary[summary_part][language] = translated_summary_text
+                else:
+                  # print(section['summary'][summary_part])
+                  summary[summary_part][language] = section['summary'][language][summary_part]
         old_data[title][0]['summary'] = summary
+    except Exception as e:
+      print(f"Error while updating rumor data: {e}")
+      exc_type, exc_obj, exc_tb = sys.exc_info()
+      fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+      print(exc_type, fname, exc_tb.tb_lineno)
     return old_data
+
 
 def delete_files_in_folder(folder):
     for filename in os.listdir(folder):
@@ -227,6 +307,7 @@ def delete_files_in_folder(folder):
                 print(f"Deleted {filename}")
         except Exception as e:
             print(f"Failed to delete {filename}: {str(e)}")
+
 
 def download_audio(audio_data, output_folder):
     print("Downloading audio...")
@@ -248,6 +329,7 @@ def download_audio(audio_data, output_folder):
             else:
                 print(f"Failed to download {filename}")
 
+
 def download_all_audio(data, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -264,13 +346,18 @@ def download_all_audio(data, output_folder):
     download_audio(all_audio_data, output_folder)
 
 # Function to perform translation from source language (nl) to target language
-def translate_function(text, target_lang, src_lang = 'auto', engine = 'google'):
+
+
+def translate_function(text, target_lang, src_lang='auto', engine='google'):
+    print(f"Translating '{text}' to {target_lang} using {engine}")
+    print(f"Source language: {src_lang}")
     if engine == 'myMemory' and target_lang == 'en':
         target_lang = 'en-GB'
-    try: 
+    try:
         if 'ts' not in sys.modules:
             import translators as ts
-        translated_text = ts.translate_text(text, engine, src_lang, target_lang)
+        translated_text = ts.translate_text(
+            text, engine, src_lang, target_lang)
     except Exception as e:
         raise Exception(f"Error while translating text: {e}") from e
     return translated_text

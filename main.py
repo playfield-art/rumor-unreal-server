@@ -1,11 +1,12 @@
 import json
+import sys
 from fastapi import FastAPI, HTTPException
 from datetime import timedelta, datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import os
 from graphql_api import get_data, get_languages
-from data import sanitize_data, get_data_from_json, get_brainjar_data, format_rumor_data, download_all_audio, update_rumor_data
+from data import sanitize_data, get_data_from_json, get_brainjar_data, get_brainjar_data_all_languages, format_rumor_data, download_all_audio, update_rumor_data
 from pythonosc import udp_client
 
 # Load environment variables from .env file
@@ -21,7 +22,7 @@ if os.getenv('OSC_IP') and os.getenv('OSC_PORT'):
         os.getenv('OSC_IP'), int(os.getenv('OSC_PORT')))
 # Fetch environment variables
 bearer_token_graphql = os.getenv('BEARER_TOKEN_GRAPHQL')
-db_url = os.getenv('DB_URL_GRAPHQL')
+graphql_db_url = os.getenv('DB_URL_GRAPHQL')
 try:
     update_interval = float(os.getenv('DB_UPDATE_INTERVAL_MIN'))
 except Exception as e:
@@ -29,6 +30,7 @@ except Exception as e:
     print(f"Error: {e}")
 UPDATE_GRAPHQL_DATA = (os.getenv('DB_UPDATE_GRAPHQL_DATA', 'False') == 'True')
 DOWNLOAD_FOR_BUILD = (os.getenv('DOWNLOAD_FOR_BUILD', 'False') == 'True')
+
 if (DOWNLOAD_FOR_BUILD):
     output_folder = os.getenv('DOWLOAD_FOLDER_QUOTE_FILES_BUILD')
 else:
@@ -65,6 +67,7 @@ def get_next_update_time() -> datetime:
 def update_database(force_update=False):
     try:
         print("Updating database...")
+
         brainjar_data = get_brainjar_data()
         interation_id = get_data_from_json('id.json')
         # change this to != to force update
@@ -72,18 +75,21 @@ def update_database(force_update=False):
             print("No new data available")
             return
         else:
+            languages = get_languages(headers, graphql_db_url)
+            brainjar_data_all_languages = get_brainjar_data_all_languages(
+                languages)
+            # print(brainjar_data_all_languages)
             print("New data available")
-            languages = get_languages(headers, db_url)
             if (UPDATE_GRAPHQL_DATA):
                 print("Update graphql data")
-                graphql_data = get_data(headers, db_url)
+                graphql_data = get_data(headers, graphql_db_url)
                 graphql_data_sanitized = sanitize_data(graphql_data)
                 all_data = format_rumor_data(
-                    brainjar_data, graphql_data_sanitized, languages)
+                    brainjar_data_all_languages, graphql_data_sanitized, languages)
             else:
                 print("Don't update graphql data")
                 all_data = update_rumor_data(
-                    brainjar_data, get_data_from_json('data.json'), languages)
+                    brainjar_data_all_languages, get_data_from_json('data.json'), languages)
             data_to_use = all_data
             data_to_use['meta_data'] = {
                 'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
@@ -107,19 +113,23 @@ def update_database(force_update=False):
                 except Exception as e:
                     print(f"Error updating id: {e}")
 
-        
     except Exception as e:
         print(f"Error updating database: {e}")
+        exc_type, exc_obj, exc_tb = sys.exc_info()
+        fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+        print(exc_type, fname, exc_tb.tb_lineno)
     finally:
         scheduler.add_job(update_database, 'date',
                           run_date=get_next_update_time())
 
 
 # The job will be executed on the next update time
-scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
+# scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
+# languages = get_languages(headers, db_url)
+# brainjar_data_all_languages = get_brainjar_data_all_languages(languages)
 
-
-# update_database(True)
+# print(brainjar_data_all_languages)
+update_database(force_update=True)
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

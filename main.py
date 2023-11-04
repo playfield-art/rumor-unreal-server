@@ -8,7 +8,7 @@ import os
 from scripts.graphql_api import get_data, get_languages
 from scripts.brainjar_api import get_brainjar_data, get_brainjar_data_all_languages
 from scripts.data import sanitize_data, format_rumor_data, update_rumor_data
-from scripts.utils import get_data_from_json, download_all_audio
+from scripts.utils import get_data_from_json, download_all_audio, check_quotes
 from pythonosc import udp_client
 
 # Load environment variables from .env file
@@ -69,7 +69,7 @@ def get_next_update_time() -> datetime:
 def update_database(force_update=False):
     try:
         print("Updating database...")
-
+        json_data = get_data_from_json('data.json')
         brainjar_data = get_brainjar_data()
         interation_id = get_data_from_json('id.json')
         # change this to != to force update
@@ -77,7 +77,8 @@ def update_database(force_update=False):
             print("No new data available")
             return
         else:
-            languages = get_languages(headers, graphql_db_url)
+            # languages = get_languages(headers, graphql_db_url)
+            languages = [{'short': 'en', 'long': 'English'}]
             brainjar_data_all_languages = get_brainjar_data_all_languages(
                 languages)
             # print(brainjar_data_all_languages)
@@ -86,12 +87,13 @@ def update_database(force_update=False):
                 print("Update graphql data")
                 graphql_data = get_data(headers, graphql_db_url)
                 graphql_data_sanitized = sanitize_data(graphql_data)
+                graphql_data = check_quotes(graphql_data, json_data)
                 all_data = format_rumor_data(
                     brainjar_data_all_languages, graphql_data_sanitized, languages)
             else:
                 print("Don't update graphql data")
                 all_data = update_rumor_data(
-                    brainjar_data_all_languages, get_data_from_json('data.json'), languages)
+                    brainjar_data_all_languages, json_data, languages)
             data_to_use = all_data
             data_to_use['meta_data'] = {
                 'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),

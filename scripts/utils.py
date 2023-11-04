@@ -57,7 +57,6 @@ def download_audio(audio_data, output_folder):
             if not os.path.exists(output_folder):
                 os.makedirs(output_folder)
             response = requests.get(audio_url)
-            print(audio_url)
             if response.status_code == 200:
                 output_path = os.path.join(output_folder, filename)
                 with open(output_path, 'wb') as file:
@@ -72,6 +71,8 @@ def download_all_audio(data, output_folder):
         os.makedirs(output_folder)
     delete_files_in_folder(output_folder)
     all_audio_data = {}
+    print("Downloading audio...")
+    print(data)
     for category_data in data.values():
         for item in category_data:
             if 'audio' in item:
@@ -80,12 +81,13 @@ def download_all_audio(data, output_folder):
                     if language not in all_audio_data:
                         all_audio_data[language] = []
                     all_audio_data[language].append(audio_info)
+    print(all_audio_data)
     download_audio(all_audio_data, output_folder)
 
 # Function to perform translation from source language (nl) to target language
 def translate_function(text, target_lang, src_lang='auto', engine='google'):
-    print(f"Translating '{text}' to {target_lang} using {engine}")
-    print(f"Source language: {src_lang}")
+    # print(f"Translating '{text}' to {target_lang} using {engine}")
+    # print(f"Source language: {src_lang}")
     if engine == 'myMemory' and target_lang == 'en':
         target_lang = 'en-GB'
     try:
@@ -118,3 +120,27 @@ def get_data_from_json(url):
         raise Exception(
             f"Error loading data from '{url}'. Make sure the file exists and contains valid JSON data.") from e
 
+def check_quotes(graphql_data, json_data):
+    print("Checking quotes...")
+    for section in json_data:
+        pass
+        # print(json_data[section])
+        # for subsection in json_data[section]['summary']:
+        #     for quote in json_data[section]['summary'][subsection]:
+        #         print(quote)
+    for section in graphql_data:
+        # print(section)
+        pass
+        for quote in graphql_data[section]:
+            pass
+            # if quote['id'] not in json_data['quotes']:
+            #     pass
+
+    #             if summary_part in json_data['data']['sections'][section['title']]['summary']:
+    #                 if language['short'] not in json_data['data']['sections'][section['title']]['summary'][summary_part]:
+    #                     json_data['data']['sections'][section['title']]['summary'][summary_part][language['short']] = []
+    #                 for quote in section['summary'][summary_part][language['short']]:
+    #                     if quote['text'] not in json_data['data']['sections'][section['title']]['summary'][summary_part][language['short']]:
+    #                         json_data['data']['sections'][section['title']]['summary'][summary_part][language['short']].append(quote['text'])
+    # print(json_data)
+    return graphql_data

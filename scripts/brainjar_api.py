@@ -1,7 +1,7 @@
 import requests
 import os
 
-def get_brainjar_data(language='nl') -> dict:
+def get_brainjar_data(language='en') -> dict:
     db_url = os.getenv('DB_URL_BRAINJAR')
     endpoint = '/rumor'
     language_param = f'?lang={language}'
@@ -25,6 +25,7 @@ def get_brainjar_data_all_languages(languages: dict) -> dict:
     print("Fetching data from Brainjar API...")
     for language in languages:
         data[language['short']] = get_brainjar_data(language['short'])
+    print("Data fetched")
     return combine_brainjar_languages(data, languages)
 
 def combine_brainjar_languages(original_data, languages):
@@ -50,11 +51,10 @@ def combine_brainjar_languages(original_data, languages):
             'summary': {tag: {} for tag in section_data['summary']}
         }
     for language in languages:
-        lang_code = language['short']
-        lang_original_data = original_data.get(lang_code, {}).get('data', {}).get('sections', {})
-        for section_title, section_data in lang_original_data.items():
-            for tag, summary_part in section_data['summary'].items():
-                new_data['data']['sections'][section_title]['summary'][tag][lang_code] = summary_part
+        for section in original_data[language['short']]['data']['sections']:
+            for summary_part in section['summary']:
+                title = section['title']
+                new_data['data']['sections'][title]['summary'][summary_part][language['short']] = section['summary'][summary_part]
     return new_data
 
 

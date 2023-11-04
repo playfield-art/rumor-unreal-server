@@ -34,6 +34,7 @@ def get_quotes(headers, db_url, category):
         pagination: {{ limit: 9999 }}                 
 			) {{
     	data {{
+        id
       	attributes {{
         	question_tag {{
           data {{
@@ -58,6 +59,7 @@ def get_quotes(headers, db_url, category):
         audio {{
           audio {{
             data {{
+              id
               attributes {{
                 url
               }}
@@ -76,8 +78,6 @@ def get_quotes(headers, db_url, category):
   }}
   }}
     '''
-
-    response = requests.post(db_url, headers=headers, data=json.dumps({'query': query}))
 
     try:
         response = requests.post(db_url, headers=headers, data=json.dumps({'query': query}))

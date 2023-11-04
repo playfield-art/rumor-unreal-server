@@ -130,7 +130,6 @@ def get_brainjar_data_all_languages(languages: dict) -> dict:
 
 def combine_brainjar_languages(original_data, languages):
     print("Combining data from different languages...")
-    print(original_data)
     first_language = languages[0]['short']
 
     # def convert_data(original_data):

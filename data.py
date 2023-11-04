@@ -141,17 +141,22 @@ def combine_brainjar_languages(original_data, languages):
         'status': original_data['en']['status'],
         'data': {
             'intro': {lang: original_data[lang]['data']['intro'] for lang in original_data},
-            'sections': [{
+            'sections': [    {
                 'title': section['title'],
                 'tags': section['tags'],
                 'summary': {
-                    tag: {lang: section['summary'][tag] for lang in original_data} for tag in section['summary']
+                    tag: {} for tag in section['summary']     
                 }
             } for section in original_data['en']['data']['sections']],
             'outro': {lang: original_data[lang]['data']['outro'] for lang in original_data}
         }
     }
-
+    for language in languages:
+        index = 0
+        for section in original_data[language['short']]['data']['sections']:
+            for summary_part in section['summary']:
+                new_data['data']['sections'][index]['summary'][summary_part][language['short']] = section['summary'][summary_part]
+            index += 1
     return new_data
 
 
@@ -186,10 +191,11 @@ def format_rumor_data(data: dict, graphql_data: dict, languages: dict):
                                 original_summary, language, 'nl', 'google')
                             summary[summary_part][language] = translated_summary_text
                 else:
+                  print(summary_part)
+                #   print(section['summary'][summary_part][language][summary_part])
                   summary[summary_part][language] = section['summary'][language][summary_part]
 
                   pass
-                  # TODO ADD TRANSLATION
         # summary = {summary_part: {language: section['summary'][summary_part] for language in short_languages} for summary_part in section['summary']}
 
         quotes = {tag: [] for tag in tags}
@@ -252,16 +258,14 @@ def update_rumor_data(data: dict, old_data: dict, languages: dict):
     try:
       short_languages = [language['short'] for language in languages]
       for section in data['data']['sections']:
-        print(section)
+        # print(section)
         title = section['title']
         # Initialize an empty dictionary to store the translated summaries
         summary = {}
-
         # Iterate through each summary part in the section's summary
         for summary_part in section['summary']:
             # Initialize a dictionary for the current summary part
             summary[summary_part] = {}
-
             # Iterate through each language in the list of short_languages
             for language in short_languages:
                 if (TRANSLATE_SUMMARY):
@@ -277,6 +281,7 @@ def update_rumor_data(data: dict, old_data: dict, languages: dict):
                                 original_summary, language, 'nl', 'google')
                             summary[summary_part][language] = translated_summary_text
                 else:
+                #   print(section['summary'][summary_part][language])
                   summary[summary_part][language] = section['summary'][summary_part][language]
         old_data[title][0]['summary'] = summary
     except Exception as e:

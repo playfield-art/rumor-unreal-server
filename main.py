@@ -5,8 +5,10 @@ from datetime import timedelta, datetime
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 import os
-from graphql_api import get_data, get_languages
-from data import sanitize_data, get_data_from_json, get_brainjar_data, get_brainjar_data_all_languages, format_rumor_data, download_all_audio, update_rumor_data
+from scripts.graphql_api import get_data, get_languages
+from scripts.brainjar_api import get_brainjar_data, get_brainjar_data_all_languages
+from scripts.data import sanitize_data, format_rumor_data, update_rumor_data
+from scripts.utils import get_data_from_json, download_all_audio
 from pythonosc import udp_client
 
 # Load environment variables from .env file

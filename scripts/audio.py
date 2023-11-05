@@ -21,6 +21,8 @@ def update_audio_files(new_data, existing_data, output_folder):
 
 def download_audio_file(url, output_folder, audio_id):
     response = requests.get(url)
+    print(f"Downloading audio file {audio_id}...")
+    print(url)
     if response.status_code == 200:
         audio_data = response.content
         file_path = os.path.join(output_folder, f"{audio_id}.wav")

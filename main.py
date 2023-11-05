@@ -142,7 +142,7 @@ scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 # brainjar_data_all_languages = get_brainjar_data_all_languages(languages)
 
 # print(brainjar_data_all_languages)
-# update_database(force_update=True)
+update_database(force_update=True)
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

@@ -74,6 +74,7 @@ def download_all_audio(data, output_folder):
     print("Downloading audio...")
     # print(data)
     # for category_data in data.values():
+    print(len(data))
     for item in data:
         if 'audio' in item['attributes']:
             audio_data = item['attributes']['audio']
@@ -81,12 +82,13 @@ def download_all_audio(data, output_folder):
                 continue
             url = None
             language = None
-            if audio_data[0]['audio']['data']['attributes']['url'] and audio_data[0]['language']['data']['attributes']:
-                url = audio_data[0]['audio']['data']['attributes']['url']
-                language = audio_data[0]['language']['data']['attributes']
-                id = audio_data[0]['audio']['data']['id']
-                all_audio_data = { 'url': url, 'id': id, 'language': language}
-                # download_audio(all_audio_data, output_folder)
+            for audio_lang in (audio_data):
+                if audio_lang['audio']['data']['attributes']['url'] and audio_data[0]['language']['data']['attributes']:
+                    url = audio_lang['audio']['data']['attributes']['url']
+                    language = audio_lang['language']['data']['attributes']
+                    id = audio_lang['audio']['data']['id']
+                    all_audio_data = { 'url': url, 'id': id, 'language': language}
+                    download_audio(all_audio_data, output_folder)
 
 
 # Function to perform translation from source language (nl) to target language
@@ -139,7 +141,9 @@ def check_quotes(graphql_data, json_data, output_folder):
     graphql_data_ids = set()
     json_data_ids = set()
     for section in graphql_data:
+        print(len(graphql_data[section]))
         for quote in graphql_data[section]:
+            
             graphql_data_ids.add(quote['id'])
     for section in json_data:
         if 'quotes' in json_data[section]:
@@ -170,6 +174,8 @@ def check_quotes(graphql_data, json_data, output_folder):
         for section in graphql_data:
             for quote in graphql_data[section]:
                 if quote['id'] == id:
+                    print(f"Adding quote with id {id}")
+                    print(quote)
                     files_to_add.append(quote)
                     break
     # print(f"Missing IDs: {missing_ids}")

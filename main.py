@@ -81,8 +81,8 @@ def update_database(force_update=False):
             print("No new data available")
             return
         else:
-            languages = get_languages(headers, graphql_db_url)
-            # languages = [{'short': 'en', 'long': 'English'}]
+            # languages = get_languages(headers, graphql_db_url)
+            languages = [{'short': 'en', 'long': 'English'}]
             brainjar_data_all_languages = get_brainjar_data_all_languages(
                 languages)
             # print(brainjar_data_all_languages)
@@ -91,14 +91,16 @@ def update_database(force_update=False):
                 print("Update graphql data")
                 graphql_data = get_data(headers, graphql_db_url)
                 graphql_data_sanitized = sanitize_data(graphql_data)
-                graphql_data = check_quotes(graphql_data, json_data, output_folder)
+                files_to_add, files_to_delete = check_quotes(graphql_data, json_data, output_folder)
+                download_all_audio(files_to_add, output_folder)
+
                 # raise Exception("Stop") 
                 all_data = format_rumor_data(
                     brainjar_data_all_languages, graphql_data_sanitized, languages)
             else:
                 print("Don't update graphql data")
                 all_data = update_rumor_data(
-                    brainjar_data_all_languages, json_data, languages)
+                    brainjar_data_all_languages, json_data, languages)['categories']
             data_to_use = {
                 'categories': all_data,
                 'meta_data': {
@@ -113,10 +115,6 @@ def update_database(force_update=False):
             if data_to_use:
                 with open('data.json', 'w') as outfile:
                     json.dump(data_to_use, outfile)
-                # trigger unreal engine
-                # if (UPDATE_GRAPHQL_DATA and output_folder):
-                    # delete_files_in_folder(output_folder)
-                    # download_all_audio(graphql_data_sanitized, output_folder)
                 # trigger unreal engine
                 client.send_message("/update", "")
                 print("Update complete")
@@ -142,7 +140,7 @@ scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 # brainjar_data_all_languages = get_brainjar_data_all_languages(languages)
 
 # print(brainjar_data_all_languages)
-update_database(force_update=True)
+# update_database(force_update=True)
 
 @app.get("/api/data")
 async def get_data_api() -> dict:

@@ -98,7 +98,8 @@ def process_quotes(section_data, graphql_data, languages, tags):
         quotes['overall'] = []
         for section_tag in section_data['tags']:
             for data_tag in graphql_data:
-                if section_tag['tag'].lower() == data_tag.lower():
+                # print(section_tag['tag'].lower(), data_tag.lower())
+                if section_tag['tag'].lower().strip() == data_tag.lower().strip():
                     for quote in graphql_data[data_tag]:
                         quote_with_language = {
                             language['short']: '' for language in languages}
@@ -198,8 +199,8 @@ def update_rumor_data(data: dict, old_data: dict, languages: dict):
                     if language in languages_data:
                         summary[summary_part][language] = languages_data[language]
                         
-            if title in old_data:
-                old_data[title][0]['summary'] = summary
+            if title in old_data['categories']:
+                old_data['categories'][title]['summary'] = summary
     except Exception as e:
         print(f"Error while updating rumor data: {e}")
         exc_type, exc_obj, exc_tb = sys.exc_info()

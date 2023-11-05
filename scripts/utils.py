@@ -74,7 +74,6 @@ def download_all_audio(data, output_folder):
     print("Downloading audio...")
     # print(data)
     # for category_data in data.values():
-    print(len(data))
     for item in data:
         if 'audio' in item['attributes']:
             audio_data = item['attributes']['audio']
@@ -137,21 +136,21 @@ def get_data_from_json(url):
             f"Error loading data from '{url}'. Make sure the file exists and contains valid JSON data.") from e
 
 def check_quotes(graphql_data, json_data, output_folder):
+    json_data_categories = {}
+    if json_data != {}:
+        json_data_categories = json_data['categories']
     print("Checking quotes...")
     graphql_data_ids = set()
     json_data_ids = set()
     for section in graphql_data:
-        print(len(graphql_data[section]))
-        for quote in graphql_data[section]:
-            
+        for quote in graphql_data[section]:            
             graphql_data_ids.add(quote['id'])
-    for section in json_data:
-        if 'quotes' in json_data[section]:
-            for subsection in json_data[section]['quotes']:
-                for quote in json_data[section]['quotes'][subsection]:
+    for section in json_data_categories:
+        if 'quotes' in json_data_categories[section]:
+            for subsection in json_data_categories[section]['quotes']:
+                for quote in json_data_categories[section]['quotes'][subsection]:
                     json_data_ids.add(quote['id'])
     
-
     # Find missing IDs in json_data
     missing_ids = graphql_data_ids - json_data_ids
 
@@ -174,17 +173,14 @@ def check_quotes(graphql_data, json_data, output_folder):
         for section in graphql_data:
             for quote in graphql_data[section]:
                 if quote['id'] == id:
-                    print(f"Adding quote with id {id}")
-                    print(quote)
                     files_to_add.append(quote)
                     break
-    # print(f"Missing IDs: {missing_ids}")
+    print(f"Missing IDs: {missing_ids}")
 
-    # print(f"IDs to delete: {ids_to_delete}")
+    print(f"IDs to delete: {ids_to_delete}")
     # print(f"Files to delete: {files_to_delete}")
     # print(f"Files to add: {files_to_add}")
     # delete_files_with_data(files_to_delete, output_folder)
-    download_all_audio(files_to_add, output_folder)
+    
+    return files_to_add, files_to_delete
 
-
-    return graphql_data

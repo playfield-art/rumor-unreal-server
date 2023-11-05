@@ -84,10 +84,9 @@ def download_all_audio(data, output_folder):
             if audio_data[0]['audio']['data']['attributes']['url'] and audio_data[0]['language']['data']['attributes']:
                 url = audio_data[0]['audio']['data']['attributes']['url']
                 language = audio_data[0]['language']['data']['attributes']
-                print(audio_data[0])
                 id = audio_data[0]['audio']['data']['id']
                 all_audio_data = { 'url': url, 'id': id, 'language': language}
-                download_audio(all_audio_data, output_folder)
+                # download_audio(all_audio_data, output_folder)
 
 
 # Function to perform translation from source language (nl) to target language

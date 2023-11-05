@@ -36,7 +36,6 @@ def sanitize_data(item):
                         for audio in v:
                             try:
                                 if audio['language']['data'] != None:
-                                    print(k)
                                     id = audio['audio']['data']["id"]
                                     url = audio['audio']['data']['attributes']['url']
                                     language = audio['language']['data']['attributes']['short']
@@ -103,7 +102,6 @@ def process_quotes(section_data, graphql_data, languages, tags):
                     for quote in graphql_data[data_tag]:
                         quote_with_language = {
                             language['short']: '' for language in languages}
-                        print(quote)
                         for language in quote['attributes']['translations']:
                             if language in short_languages:
                                 text = quote['attributes']['translations'][language]

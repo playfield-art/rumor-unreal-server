@@ -99,11 +99,14 @@ def update_database(force_update=False):
                 print("Don't update graphql data")
                 all_data = update_rumor_data(
                     brainjar_data_all_languages, json_data, languages)
-            data_to_use = all_data
-            data_to_use['meta_data'] = {
+            data_to_use = {
+                'categories': all_data,
+                'meta_data': {
                 'last_updated': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
                 'languages': languages,
                 'intro_url': 'intro'
+            }
+                    
             }
 
             # Save the updated data to 'data.json'
@@ -134,12 +137,12 @@ def update_database(force_update=False):
 
 
 # The job will be executed on the next update time
-# scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
+scheduler.add_job(update_database, 'date', run_date=get_next_update_time())
 # languages = get_languages(headers, db_url)
 # brainjar_data_all_languages = get_brainjar_data_all_languages(languages)
 
 # print(brainjar_data_all_languages)
-update_database(force_update=True)
+# update_database(force_update=True)
 
 @app.get("/api/data")
 async def get_data_api() -> dict:
@@ -152,6 +155,6 @@ async def get_data_api() -> dict:
 @app.get("/api/categories")
 async def get_categories_api() -> dict:
     if data_to_use:
-        return {"categories": list(data_to_use.keys())}
+        return {"categories": list(data_to_use['categories'].keys())}
     else:
         raise HTTPException(status_code=500, detail="Data is not available.")

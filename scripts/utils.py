@@ -4,6 +4,7 @@ import re
 import requests
 import sys
 
+
 def break_after_title(text):
     replacements = {
         "donated": "donated<br>",
@@ -48,41 +49,46 @@ def insert_br_before_long_words(input_string: str, max_consecutive_chars: int = 
 
 def download_audio(audio_data, output_folder):
     print("Downloading audio...")
-    for language, audio_list in audio_data.items():
-        for audio_info in audio_list:
-            audio_url = audio_info['url']
-            audio_id = audio_info['id']
-            filename = f"{audio_id}.wav"
+    audio_url = audio_data['url']
+    audio_id = audio_data['id']
+    language = audio_data['language']['short']
+    filename = f"{language}_{audio_id}.wav"
 
-            if not os.path.exists(output_folder):
-                os.makedirs(output_folder)
-            response = requests.get(audio_url)
-            if response.status_code == 200:
-                output_path = os.path.join(output_folder, filename)
-                with open(output_path, 'wb') as file:
-                    file.write(response.content)
-                print(f"Downloaded {filename}")
-            else:
-                print(f"Failed to download {filename}")
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    response = requests.get(audio_url)
+    if response.status_code == 200:
+        output_path = os.path.join(output_folder, filename)
+        with open(output_path, 'wb') as file:
+            file.write(response.content)
+        print(f"Downloaded {filename}")
+    else:
+        print(f"Failed to download {filename}")
 
 
 def download_all_audio(data, output_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    delete_files_in_folder(output_folder)
+    # delete_files_in_folder(output_folder)
     all_audio_data = {}
     print("Downloading audio...")
-    print(data)
-    for category_data in data.values():
-        for item in category_data:
-            if 'audio' in item:
-                audio_data = item['audio']
-                for language, audio_info in audio_data.items():
-                    if language not in all_audio_data:
-                        all_audio_data[language] = []
-                    all_audio_data[language].append(audio_info)
-    print(all_audio_data)
-    download_audio(all_audio_data, output_folder)
+    # print(data)
+    # for category_data in data.values():
+    for item in data:
+        if 'audio' in item['attributes']:
+            audio_data = item['attributes']['audio']
+            if len(audio_data) == 0:
+                continue
+            url = None
+            language = None
+            if audio_data[0]['audio']['data']['attributes']['url'] and audio_data[0]['language']['data']['attributes']:
+                url = audio_data[0]['audio']['data']['attributes']['url']
+                language = audio_data[0]['language']['data']['attributes']
+                print(audio_data[0])
+                id = audio_data[0]['audio']['data']['id']
+                all_audio_data = { 'url': url, 'id': id, 'language': language}
+                download_audio(all_audio_data, output_folder)
+
 
 # Function to perform translation from source language (nl) to target language
 def translate_function(text, target_lang, src_lang='auto', engine='google'):
@@ -108,8 +114,17 @@ def delete_files_in_folder(folder):
                 print(f"Deleted {filename}")
         except Exception as e:
             print(f"Failed to delete {filename}: {str(e)}")
-            
 
+            
+def delete_files_with_data(data, folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                print(f"Deleted {filename}")
+        except Exception as e:
+            print(f"Failed to delete {filename}: {str(e)}")
 
 def get_data_from_json(url):
     try:
@@ -120,27 +135,51 @@ def get_data_from_json(url):
         raise Exception(
             f"Error loading data from '{url}'. Make sure the file exists and contains valid JSON data.") from e
 
-def check_quotes(graphql_data, json_data):
+def check_quotes(graphql_data, json_data, output_folder):
     print("Checking quotes...")
-    for section in json_data:
-        pass
-        # print(json_data[section])
-        # for subsection in json_data[section]['summary']:
-        #     for quote in json_data[section]['summary'][subsection]:
-        #         print(quote)
+    graphql_data_ids = set()
+    json_data_ids = set()
     for section in graphql_data:
-        # print(section)
-        pass
         for quote in graphql_data[section]:
-            pass
-            # if quote['id'] not in json_data['quotes']:
-            #     pass
+            graphql_data_ids.add(quote['id'])
+    for section in json_data:
+        if 'quotes' in json_data[section]:
+            for subsection in json_data[section]['quotes']:
+                for quote in json_data[section]['quotes'][subsection]:
+                    json_data_ids.add(quote['id'])
+    
 
-    #             if summary_part in json_data['data']['sections'][section['title']]['summary']:
-    #                 if language['short'] not in json_data['data']['sections'][section['title']]['summary'][summary_part]:
-    #                     json_data['data']['sections'][section['title']]['summary'][summary_part][language['short']] = []
-    #                 for quote in section['summary'][summary_part][language['short']]:
-    #                     if quote['text'] not in json_data['data']['sections'][section['title']]['summary'][summary_part][language['short']]:
-    #                         json_data['data']['sections'][section['title']]['summary'][summary_part][language['short']].append(quote['text'])
-    # print(json_data)
+    # Find missing IDs in json_data
+    missing_ids = graphql_data_ids - json_data_ids
+
+    # Find IDs that need to be deleted from json_data
+    ids_to_delete = json_data_ids - graphql_data_ids
+
+    files_to_delete = []
+    files_to_add = []
+
+    for id in ids_to_delete:
+        print(f"Deleting quote with id {id}")
+        for section in json_data:
+            if 'quotes' in json_data[section]:
+                for subsection in json_data[section]['quotes']:
+                    for quote in json_data[section]['quotes'][subsection]:
+                        if quote['id'] == id:
+                            files_to_delete.append(quote['audio']['en']['url'])
+                            break
+    for id in missing_ids:
+        for section in graphql_data:
+            for quote in graphql_data[section]:
+                if quote['id'] == id:
+                    files_to_add.append(quote)
+                    break
+    # print(f"Missing IDs: {missing_ids}")
+
+    # print(f"IDs to delete: {ids_to_delete}")
+    # print(f"Files to delete: {files_to_delete}")
+    # print(f"Files to add: {files_to_add}")
+    # delete_files_with_data(files_to_delete, output_folder)
+    download_all_audio(files_to_add, output_folder)
+
+
     return graphql_data
